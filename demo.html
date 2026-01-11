@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letterboxd World Map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/topojson.v3.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useCallback, useRef, useEffect } = React;
+
+const countryNameToCode = {
+  'United States': 'USA', 'United States of America': 'USA', 'USA': 'USA', 'US': 'USA',
+  'United Kingdom': 'GBR', 'UK': 'GBR', 'Great Britain': 'GBR', 'England': 'GBR',
+  'France': 'FRA', 'Germany': 'DEU', 'West Germany': 'DEU', 'Italy': 'ITA', 'Spain': 'ESP',
+  'Portugal': 'PRT', 'Netherlands': 'NLD', 'Belgium': 'BEL', 'Switzerland': 'CHE',
+  'Austria': 'AUT', 'Sweden': 'SWE', 'Norway': 'NOR', 'Denmark': 'DNK', 'Finland': 'FIN',
+  'Iceland': 'ISL', 'Ireland': 'IRL', 'Poland': 'POL', 'Czech Republic': 'CZE',
+  'Czechoslovakia': 'CZE', 'Slovakia': 'SVK', 'Hungary': 'HUN', 'Romania': 'ROU',
+  'Bulgaria': 'BGR', 'Greece': 'GRC', 'Croatia': 'HRV', 'Serbia': 'SRB', 'Slovenia': 'SVN',
+  'Ukraine': 'UKR', 'Russia': 'RUS', 'Russian Federation': 'RUS', 'Soviet Union': 'RUS',
+  'Japan': 'JPN', 'China': 'CHN', 'Hong Kong': 'HKG', 'Taiwan': 'TWN',
+  'South Korea': 'KOR', 'Korea': 'KOR', 'Republic of Korea': 'KOR', 'North Korea': 'PRK',
+  'India': 'IND', 'Thailand': 'THA', 'Vietnam': 'VNM', 'Philippines': 'PHL',
+  'Indonesia': 'IDN', 'Malaysia': 'MYS', 'Singapore': 'SGP', 'Pakistan': 'PAK',
+  'Israel': 'ISR', 'Turkey': 'TUR', 'Iran': 'IRN', 'Saudi Arabia': 'SAU',
+  'United Arab Emirates': 'ARE', 'Egypt': 'EGY', 'South Africa': 'ZAF', 'Nigeria': 'NGA',
+  'Kenya': 'KEN', 'Morocco': 'MAR', 'Algeria': 'DZA', 'Tunisia': 'TUN',
+  'Canada': 'CAN', 'Mexico': 'MEX', 'Brazil': 'BRA', 'Argentina': 'ARG', 'Chile': 'CHL',
+  'Colombia': 'COL', 'Peru': 'PER', 'Venezuela': 'VEN', 'Cuba': 'CUB',
+  'Australia': 'AUS', 'New Zealand': 'NZL', 'Luxembourg': 'LUX', 'Malta': 'MLT',
+  'Cyprus': 'CYP', 'Lebanon': 'LBN', 'Jordan': 'JOR', 'Iraq': 'IRQ', 'Syria': 'SYR',
+  'Afghanistan': 'AFG', 'Kazakhstan': 'KAZ', 'Mongolia': 'MNG', 'Nepal': 'NPL',
+  'Sri Lanka': 'LKA', 'Bangladesh': 'BGD', 'Myanmar': 'MMR', 'Cambodia': 'KHM',
+  'Laos': 'LAO', 'Puerto Rico': 'PRI', 'Jamaica': 'JAM', 'Dominican Republic': 'DOM',
+  'Haiti': 'HTI', 'Guatemala': 'GTM', 'Costa Rica': 'CRI', 'Panama': 'PAN',
+  'Ecuador': 'ECU', 'Bolivia': 'BOL', 'Uruguay': 'URY', 'Paraguay': 'PRY',
+  'Ghana': 'GHA', 'Senegal': 'SEN', 'Ethiopia': 'ETH', 'Tanzania': 'TZA',
+  'Uganda': 'UGA', 'Zimbabwe': 'ZWE', 'Botswana': 'BWA', 'Namibia': 'NAM',
+  'Belarus': 'BLR', 'Lithuania': 'LTU', 'Latvia': 'LVA', 'Estonia': 'EST',
+  'Albania': 'ALB', 'North Macedonia': 'MKD', 'Macedonia': 'MKD', 'Montenegro': 'MNE',
+  'Bosnia and Herzegovina': 'BIH', 'Moldova': 'MDA', 'Georgia': 'GEO', 'Armenia': 'ARM',
+  'Azerbaijan': 'AZE', 'Qatar': 'QAT', 'Kuwait': 'KWT', 'Bahrain': 'BHR', 'Oman': 'OMN',
+  'Yemen': 'YEM', 'Palestine': 'PSE', 'Palestinian Territory': 'PSE'
+};
+
+const codeToCountryName = {
+  'USA': 'United States', 'GBR': 'United Kingdom', 'FRA': 'France', 'DEU': 'Germany',
+  'ITA': 'Italy', 'ESP': 'Spain', 'JPN': 'Japan', 'CHN': 'China', 'KOR': 'South Korea',
+  'IND': 'India', 'CAN': 'Canada', 'AUS': 'Australia', 'BRA': 'Brazil', 'MEX': 'Mexico',
+  'RUS': 'Russia', 'NLD': 'Netherlands', 'SWE': 'Sweden', 'DNK': 'Denmark',
+  'NOR': 'Norway', 'FIN': 'Finland', 'POL': 'Poland', 'BEL': 'Belgium', 'CHE': 'Switzerland',
+  'AUT': 'Austria', 'IRL': 'Ireland', 'NZL': 'New Zealand', 'ARG': 'Argentina',
+  'HKG': 'Hong Kong', 'TWN': 'Taiwan', 'THA': 'Thailand', 'SGP': 'Singapore',
+  'ZAF': 'South Africa', 'EGY': 'Egypt', 'ISR': 'Israel', 'TUR': 'Turkey', 'GRC': 'Greece'
+};
+
+function normalizeCountryName(name) {
+  if (!name) return null;
+  return countryNameToCode[name.trim()] || null;
+}
+
+function getDisplayName(code) {
+  return codeToCountryName[code] || code;
+}
+
+function App() {
+  const [step, setStep] = useState('upload');
+  const [movies, setMovies] = useState([]);
+  const [countryData, setCountryData] = useState({});
+  const [moviesByCountry, setMoviesByCountry] = useState({});
+  const [tooltip, setTooltip] = useState(null);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
+  const [error, setError] = useState(null);
+  const [apiKey, setApiKey] = useState('bbbd9418');
+  const [geoData, setGeoData] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  
+  const fileInputRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const svgRef = useRef(null);
+
+  useEffect(() => {
+    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+      .then(res => res.json())
+      .then(data => {
+        const countries = topojson.feature(data, data.objects.countries);
+        setGeoData(countries);
+      });
+  }, []);
+
+  const maxCount = Math.max(...Object.values(countryData), 1);
+
+  const getColor = (count) => {
+    if (count === 0) return '#1a2029';
+    const intensity = count / maxCount;
+    const r = Math.round(26 + (0 - 26) * intensity);
+    const g = Math.round(32 + (224 - 32) * intensity);
+    const b = Math.round(41 + (84 - 41) * intensity);
+    return `rgb(${r},${g},${b})`;
+  };
+
+  const handleFileUpload = useCallback(async (file) => {
+    if (!file) return;
+    setError(null);
+    
+    Papa.parse(file, {
+      header: true,
+      complete: async (results) => {
+        const movieList = results.data.filter(row => row.Name && row.Year);
+        setMovies(movieList);
+        setStep('loading');
+        setLoadingProgress({ current: 0, total: movieList.length });
+        
+        abortControllerRef.current = new AbortController();
+        
+        const countryCount = {};
+        const moviesByCountryTemp = {};
+        const batchSize = 5;
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        
+        for (let i = 0; i < movieList.length; i += batchSize) {
+          if (abortControllerRef.current?.signal.aborted) break;
+          
+          const batch = movieList.slice(i, i + batchSize);
+          
+          await Promise.all(batch.map(async (movie) => {
+            try {
+              const title = encodeURIComponent(movie.Name);
+              const year = movie.Year;
+              const response = await fetch(
+                `https://www.omdbapi.com/?t=${title}&y=${year}&apikey=${apiKey}`,
+                { signal: abortControllerRef.current?.signal }
+              );
+              
+              const data = await response.json();
+              
+              if (data.Response === 'True' && data.Country) {
+                const countries = data.Country.split(',').map(c => c.trim());
+                
+                countries.forEach(country => {
+                  const code = normalizeCountryName(country);
+                  if (code) {
+                    countryCount[code] = (countryCount[code] || 0) + 1;
+                    if (!moviesByCountryTemp[code]) moviesByCountryTemp[code] = [];
+                    
+                    const movieInfo = {
+                      title: movie.Name,
+                      year: movie.Year,
+                      uri: movie['Letterboxd URI'],
+                      poster: data.Poster !== 'N/A' ? data.Poster : null
+                    };
+                    
+                    if (!moviesByCountryTemp[code].find(m => m.title === movieInfo.title && m.year === movieInfo.year)) {
+                      moviesByCountryTemp[code].push(movieInfo);
+                    }
+                  }
+                });
+              }
+            } catch (err) {
+              if (err.name !== 'AbortError') console.error(err);
+            }
+          }));
+          
+          setLoadingProgress({ current: Math.min(i + batchSize, movieList.length), total: movieList.length });
+          if (i + batchSize < movieList.length) await delay(100);
+        }
+        
+        setCountryData(countryCount);
+        setMoviesByCountry(moviesByCountryTemp);
+        setStep('map');
+      },
+      error: (err) => setError(`Error parsing CSV: ${err.message}`)
+    });
+  }, [apiKey]);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.csv')) handleFileUpload(file);
+    else setError('Please upload a valid CSV file');
+  }, [handleFileUpload]);
+
+  const handleReset = useCallback(() => {
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    setStep('upload');
+    setMovies([]);
+    setCountryData({});
+    setMoviesByCountry({});
+    setSelectedCountry(null);
+    setError(null);
+  }, []);
+
+  const totalMovies = movies.length;
+  const totalCountries = Object.keys(countryData).length;
+  const topCountry = Object.entries(countryData).sort((a, b) => b[1] - a[1])[0];
+
+  const getCountryCode = (properties) => {
+    return properties.ISO_A3 || properties.iso_a3 || properties.ADM0_A3 || null;
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <header style={{
+        background: '#0d1114', borderBottom: '1px solid #2c3440', padding: '1rem 2rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff8000' }}/>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#00e054' }}/>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#40bcf4' }}/>
+          </div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
+            Letterboxd <span style={{ color: '#99aabb', fontWeight: 400 }}>World Map</span>
+          </div>
+        </div>
+      </header>
+
+      <main style={{ flex: 1, padding: '2rem', maxWidth: 1600, width: '100%', margin: '0 auto' }}>
+        {step === 'upload' && (
+          <section style={{ textAlign: 'center', padding: '4rem 2rem', animation: 'fadeIn 0.5s ease' }}>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 700, color: '#fff', marginBottom: '1rem' }}>
+              Map your movies!
+            </h1>
+            <p style={{ fontSize: '1.125rem', color: '#99aabb', marginBottom: '2rem', maxWidth: 600, margin: '0 auto 2rem', lineHeight: 1.6 }}>
+              Upload your Letterboxd export to visualize which countries your watched movies come from.
+            </p>
+            
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDrop={handleDrop}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+              style={{
+                border: `2px dashed ${dragOver ? '#00e054' : '#2c3440'}`,
+                borderRadius: 12, padding: '3rem 2rem', maxWidth: 500,
+                margin: '0 auto 2rem', cursor: 'pointer',
+                background: dragOver ? 'rgba(0, 224, 84, 0.05)' : '#1c2228',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <div style={{ width: 64, height: 64, margin: '0 auto 1rem', color: '#00e054' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="2" width="20" height="20" rx="2"/>
+                  <line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                </svg>
+              </div>
+              <p style={{ fontSize: '1.125rem', color: '#cde', marginBottom: '0.5rem' }}>Drop your watched.csv here</p>
+              <p style={{ fontSize: '0.875rem', color: '#99aabb' }}>or click to browse</p>
+              <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }}
+                onChange={(e) => handleFileUpload(e.target.files[0])} />
+            </div>
+
+            <div style={{ maxWidth: 500, margin: '0 auto', textAlign: 'left' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: '#cde', marginBottom: '0.5rem' }}>
+                OMDb API Key (optional)
+              </label>
+              <input type="text" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your API key"
+                style={{
+                  width: '100%', padding: '0.75rem 1rem', background: '#1c2228',
+                  border: '1px solid #2c3440', borderRadius: 6, color: '#fff',
+                  fontSize: '0.875rem', fontFamily: 'inherit'
+                }} />
+              <p style={{ fontSize: '0.75rem', color: '#99aabb', marginTop: '0.5rem' }}>
+                Get a free API key at <a href="https://www.omdbapi.com/apikey.aspx" target="_blank"
+                  style={{ color: '#40bcf4', textDecoration: 'none' }}>omdbapi.com</a>
+              </p>
+            </div>
+
+            {error && (
+              <div style={{
+                background: 'rgba(255, 128, 0, 0.1)', border: '1px solid #ff8000',
+                borderRadius: 8, padding: '1rem', marginTop: '1rem', color: '#ff8000'
+              }}>{error}</div>
+            )}
+          </section>
+        )}
+
+        {step === 'loading' && (
+          <section style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <div style={{
+              width: 60, height: 60, border: '3px solid #2c3440', borderTopColor: '#00e054',
+              borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1.5rem'
+            }}/>
+            <p style={{ fontSize: '1.25rem', color: '#cde', marginBottom: '0.5rem' }}>Fetching movie data...</p>
+            <p style={{ fontSize: '0.875rem', color: '#99aabb' }}>
+              {loadingProgress.current} of {loadingProgress.total} movies processed
+            </p>
+            <div style={{ width: 300, height: 4, background: '#2c3440', borderRadius: 2, margin: '1rem auto', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', background: 'linear-gradient(90deg, #00e054, #40bcf4)',
+                width: `${(loadingProgress.current / loadingProgress.total) * 100}%`,
+                transition: 'width 0.3s ease'
+              }}/>
+            </div>
+            <button onClick={handleReset} style={{
+              padding: '0.75rem 1.5rem', background: 'transparent', border: '1px solid #2c3440',
+              borderRadius: 6, color: '#99aabb', fontSize: '0.875rem', cursor: 'pointer', marginTop: '2rem'
+            }}>Cancel</button>
+          </section>
+        )}
+
+        {step === 'map' && geoData && (
+          <section style={{ animation: 'fadeIn 0.5s ease' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '3rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#00e054' }}>{totalMovies}</div>
+                <div style={{ fontSize: '0.875rem', color: '#99aabb', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Movies Watched</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#00e054' }}>{totalCountries}</div>
+                <div style={{ fontSize: '0.875rem', color: '#99aabb', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Countries</div>
+              </div>
+              {topCountry && (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: 700, color: '#00e054' }}>{getDisplayName(topCountry[0])}</div>
+                  <div style={{ fontSize: '0.875rem', color: '#99aabb', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top Country ({topCountry[1]} movies)</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ background: '#1c2228', borderRadius: 12, border: '1px solid #2c3440', overflow: 'hidden' }}>
+              <svg ref={svgRef} viewBox="0 0 960 500" style={{ width: '100%', height: 'auto', display: 'block' }}>
+                <g>
+                  {geoData.features.map((feature, i) => {
+                    const code = getCountryCode(feature.properties);
+                    const count = countryData[code] || 0;
+                    const hasMovies = count > 0;
+                    const path = d3.geoPath()(feature);
+                    
+                    return (
+                      <path
+                        key={i}
+                        d={path}
+                        fill={getColor(count)}
+                        stroke="#2c3440"
+                        strokeWidth={0.5}
+                        style={{ cursor: hasMovies ? 'pointer' : 'default', transition: 'fill 0.2s ease' }}
+                        onMouseEnter={(e) => {
+                          e.target.style.fill = hasMovies ? '#40bcf4' : '#242c34';
+                          setTooltip({
+                            x: e.clientX, y: e.clientY,
+                            country: feature.properties.name || feature.properties.NAME || getDisplayName(code),
+                            count
+                          });
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.fill = getColor(count);
+                          setTooltip(null);
+                        }}
+                        onMouseMove={(e) => tooltip && setTooltip(prev => ({ ...prev, x: e.clientX, y: e.clientY }))}
+                        onClick={() => {
+                          if (hasMovies) {
+                            setSelectedCountry({
+                              code,
+                              name: feature.properties.name || feature.properties.NAME || getDisplayName(code),
+                              movies: moviesByCountry[code] || []
+                            });
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </g>
+              </svg>
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '1rem', borderTop: '1px solid #2c3440' }}>
+                <span style={{ fontSize: '0.75rem', color: '#99aabb' }}>0 movies</span>
+                <div style={{ width: 200, height: 8, borderRadius: 4, background: 'linear-gradient(90deg, #1a2029, #00e054)' }}/>
+                <span style={{ fontSize: '0.75rem', color: '#99aabb' }}>{maxCount} movies</span>
+              </div>
+            </div>
+
+            <button onClick={handleReset} style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem',
+              background: 'transparent', border: '1px solid #2c3440', borderRadius: 6,
+              color: '#99aabb', fontSize: '0.875rem', cursor: 'pointer', margin: '2rem auto 0'
+            }}>
+              <span>↩</span> Upload New Data
+            </button>
+          </section>
+        )}
+      </main>
+
+      {tooltip && (
+        <div style={{
+          position: 'fixed', left: tooltip.x + 15, top: tooltip.y + 15,
+          background: '#0d1114', border: '1px solid #2c3440', borderRadius: 8,
+          padding: '1rem', pointerEvents: 'none', zIndex: 1000,
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)'
+        }}>
+          <div style={{ fontSize: '1rem', fontWeight: 600, color: '#fff', marginBottom: '0.25rem' }}>{tooltip.country}</div>
+          <div style={{ fontSize: '0.875rem', color: '#00e054' }}>
+            {tooltip.count > 0 ? `${tooltip.count} movie${tooltip.count > 1 ? 's' : ''} watched` : 'No movies watched'}
+          </div>
+          {tooltip.count > 0 && <div style={{ fontSize: '0.75rem', color: '#99aabb', marginTop: '0.5rem' }}>Click to see movies</div>}
+        </div>
+      )}
+
+      {selectedCountry && (
+        <div onClick={() => setSelectedCountry(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem'
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: '#14181c', border: '1px solid #2c3440', borderRadius: 12,
+            maxWidth: 800, width: '100%', maxHeight: '80vh', overflow: 'hidden',
+            display: 'flex', flexDirection: 'column'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid #2c3440' }}>
+              <div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>{selectedCountry.name}</div>
+                <div style={{ fontSize: '0.875rem', color: '#00e054' }}>{selectedCountry.movies.length} film{selectedCountry.movies.length > 1 ? 's' : ''} watched</div>
+              </div>
+              <button onClick={() => setSelectedCountry(null)} style={{
+                width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'transparent', border: '1px solid #2c3440', borderRadius: 6,
+                color: '#99aabb', cursor: 'pointer', fontSize: '1.25rem'
+              }}>✕</button>
+            </div>
+            <div style={{ padding: '1.5rem', overflowY: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
+                {selectedCountry.movies.sort((a, b) => b.year - a.year).map((movie, idx) => (
+                  <a key={`${movie.title}-${idx}`} href={movie.uri} target="_blank" rel="noopener noreferrer"
+                    style={{
+                      background: '#1c2228', borderRadius: 8, overflow: 'hidden',
+                      textDecoration: 'none', color: 'inherit', border: '1px solid transparent',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = '#00e054'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'transparent'; }}
+                  >
+                    <div style={{ aspectRatio: '2/3', background: '#242c34', overflow: 'hidden' }}>
+                      {movie.poster ? (
+                        <img src={movie.poster} alt={movie.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#99aabb', fontSize: '2rem' }}>🎬</div>
+                      )}
+                    </div>
+                    <div style={{ padding: '0.75rem' }}>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#cde', marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{movie.title}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#99aabb' }}>{movie.year}</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer style={{ padding: '2rem', textAlign: 'center', borderTop: '1px solid #2c3440' }}>
+        <p style={{ fontSize: '0.875rem', color: '#99aabb' }}>
+          Made with ♥ by Naomi • Data from{' '}
+          <a href="https://letterboxd.com" target="_blank" style={{ color: '#00e054', textDecoration: 'none' }}>Letterboxd</a>
+          {' '}and{' '}
+          <a href="https://omdbapi.com" target="_blank" style={{ color: '#00e054', textDecoration: 'none' }}>OMDb</a>
+        </p>
+      </footer>
+
+      <style>{`
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(180deg, #14181c 0%, #0d1114 100%); color: #99aabb; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html>
