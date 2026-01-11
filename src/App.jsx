@@ -368,7 +368,7 @@ function App() {
           </div>
         </div>
         <a
-          href="https://github.com"
+          href="https://github.com/nxomi/movie-mapper"
           target="_blank"
           rel="noopener noreferrer"
           className="github-link"
