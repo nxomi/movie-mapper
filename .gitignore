@@ -26,6 +26,3 @@ npm-debug.log*
 # Cache
 .cache/
 .parcel-cache/
-
-# Domain
-CNAME
