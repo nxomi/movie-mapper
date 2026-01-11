@@ -629,7 +629,9 @@ function App() {
 
       <footer className="footer">
         <p className="footer-text">
-          Made with ♥ by Naomi • Data from{' '}
+          Made with ♥ by{' '}
+          <a href="https://boxd.it/goo11" target="_blank" rel="noopener noreferrer">Naomi</a>
+          {' '}• Data from{' '}
           <a href="https://letterboxd.com" target="_blank" rel="noopener noreferrer">Letterboxd</a>
           {' '}and{' '}
           <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">TMDB</a>
