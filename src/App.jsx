@@ -387,6 +387,13 @@ function App() {
               See the world through cinema.
             </p>
 
+            <div className="privacy-notice">
+              <svg className="privacy-icon" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
+              <span>Your data is processed 100% locally in your browser. No data is uploaded.</span>
+            </div>
+
             <div
               className={`upload-dropzone ${dragOver ? 'dragover' : ''}`}
               onClick={() => fileInputRef.current?.click()}
@@ -455,7 +462,7 @@ function App() {
               {topCountry && (
                 <div className="stat-item">
                   <div className="stat-value">{isoToName[topCountry[0]] || topCountry[0]}</div>
-                  <div className="stat-label">Top Country ({topCountry[1]} films)</div>
+                  <div className="stat-label">Top Country ({topCountry[1]} movies)</div>
                 </div>
               )}
             </div>
@@ -549,9 +556,9 @@ function App() {
               </div>
 
               <div className="legend">
-                <span className="legend-label">0 films</span>
+                <span className="legend-label">0 movies</span>
                 <div className="legend-gradient"></div>
-                <span className="legend-label">{maxCount} films</span>
+                <span className="legend-label">{maxCount} movies</span>
               </div>
             </div>
 
@@ -573,10 +580,10 @@ function App() {
         >
           <div className="tooltip-country">{tooltip.country}</div>
           <div className="tooltip-count">
-            {tooltip.count > 0 ? `${tooltip.count} film${tooltip.count > 1 ? 's' : ''} watched` : 'No films watched'}
+            {tooltip.count > 0 ? `${tooltip.count} movie${tooltip.count > 1 ? 's' : ''} watched` : 'No movies watched'}
           </div>
           {tooltip.count > 0 && (
-            <div className="tooltip-hint">Click to see films</div>
+            <div className="tooltip-hint">Click to see movies</div>
           )}
         </div>
       )}
